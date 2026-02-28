@@ -1,0 +1,18 @@
+{
+  "donations": [
+    {
+      "id": 1772139515518,
+      "first": "John",
+      "last": "Doe",
+      "email": "john@example.com",
+      "paymentMethod": "mpesa",
+      "amount": 25,
+      "timestamp": "2026-02-26T20:58:35.518Z",
+      "processor": {
+        "simulated": true,
+        "method": "mpesa_stk_pending"
+      }
+    }
+  ],
+  "contacts": []
+}

@@ -1,12 +1,7 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "*.html", "use": "@vercel/static" },
-    { "src": "*.js", "use": "@vercel/static" },
-    { "src": "*.css", "use": "@vercel/static" }
-  ],
   "routes": [
-    { "src": "/", "dest": "/charity-website.html" },
-    { "src": "/admin", "dest": "/admin.html" }
+    { "src": "/admin", "dest": "/admin.html" },
+    { "src": "/(.*)", "dest": "/charity-website.html" }
   ]
 }

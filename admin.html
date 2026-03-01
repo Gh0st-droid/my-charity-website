@@ -1,0 +1,302 @@
+http://localhost:3000/charity-website.html<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Donations</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* simple overrides for admin view */
+    body { padding: 2rem; background: var(--warm-white); }
+    table { width: 100%; border-collapse: collapse; margin-top:1rem; }
+    th, td { padding: 0.5rem 0.75rem; border:1px solid var(--border); }
+    th { background: var(--light-bg); text-align: left; }
+    #filter { max-width: 300px; margin-top:1rem; }
+  </style>
+</head>
+<body>
+  <div class="admin-dashboard">
+    <div class="admin-header">
+      <h1>Admin Dashboard</h1>
+      <div><a href="/charity-website.html">View site</a></div>
+    </div>
+    <div class="admin-grid">
+      <div>
+        <div class="admin-section admin-tables">
+          <h2>Donations</h2>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-weight:600;margin-right:0.5rem;">Filter donations (project):</label>
+            <input id="donationFilter" placeholder="Project contains..." style="max-width:320px;" />
+          </div>
+          <table id="donationsTable">
+            <thead>
+              <tr><th>ID</th><th>Date</th><th>Donor</th><th>Project</th><th>Amount</th><th>Method</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="admin-section admin-tables" style="margin-top:0.8rem;">
+          <h2>Projects</h2>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-weight:600;margin-right:0.5rem;">Search projects:</label>
+            <input id="projFilter" placeholder="Title or tag..." style="max-width:320px;" />
+          </div>
+          <table id="projectsTable">
+            <thead><tr><th>Title</th><th>Tag</th><th>Emoji</th><th>Description</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="admin-section admin-tables" style="margin-top:0.8rem;">
+          <h2>Events</h2>
+          <div style="margin-bottom:0.5rem;">
+            <label style="font-weight:600;margin-right:0.5rem;">Search events:</label>
+            <input id="evFilter" placeholder="Title or meta..." style="max-width:320px;" />
+          </div>
+          <table id="eventsTable">
+            <thead><tr><th>Date</th><th>Title</th><th>Meta</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside class="admin-section">
+        <div class="admin-forms">
+          <h3>New Project</h3>
+          <form id="projectForm" class="admin-forms">
+            <input type="text" id="projTitle" placeholder="Title" required />
+            <input type="text" id="projTag" placeholder="Tag" />
+            <input type="text" id="projEmoji" placeholder="Emoji" />
+            <input type="text" id="projDesc" placeholder="Description" />
+            <button type="submit">Add Project</button>
+          </form>
+
+          <h3 style="margin-top:1rem;">New Event</h3>
+          <form id="eventForm" class="admin-forms">
+            <input type="date" id="evDate" required />
+            <input type="text" id="evTitle" placeholder="Title" required />
+            <input type="text" id="evMeta" placeholder="Meta" />
+            <button type="submit">Add Event</button>
+          </form>
+        </div>
+      </aside>
+    </div>
+
+    <!-- confirmation modal -->
+    <div id="confirmModal" class="confirm-modal" aria-hidden="true">
+      <div class="confirm-box">
+        <div id="confirmMessage">Are you sure?</div>
+        <div class="confirm-actions">
+          <button class="cancel-btn" id="confirmCancel">Cancel</button>
+          <button class="confirm-btn" id="confirmOK">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- Donations ---
+      async function loadDonations(filter) {
+        let url = '/api/donations';
+        if (filter) url += '?project=' + encodeURIComponent(filter);
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const tbody = document.querySelector('#donationsTable tbody');
+        tbody.innerHTML = '';
+        (data.donations||[]).forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${d.id}</td>
+            <td>${new Date(d.timestamp).toLocaleString()}</td>
+            <td>${d.first?d.first+' '+d.last:'Anonymous'}</td>
+            <td>${d.project||'None'}</td>
+            <td>$${(d.amount||0).toLocaleString('en-US')}</td>
+            <td>${d.paymentMethod||''}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+      document.getElementById('donationFilter').addEventListener('input', e=>{
+        loadDonations(e.target.value);
+      });
+      loadDonations();
+
+      // --- Projects (list, inline edit, delete) ---
+      function createProjectRow(p) {
+        const tr = document.createElement('tr');
+        tr.dataset.id = p.id;
+        tr.innerHTML = `
+          <td class="proj-title">${escapeHtml(p.title)}</td>
+          <td class="proj-tag">${escapeHtml(p.tag||'')}</td>
+          <td class="proj-emoji">${escapeHtml(p.emoji||'')}</td>
+          <td class="proj-desc">${escapeHtml(p.desc||'')}</td>
+          <td class="admin-actions">
+            <button class="edit-proj">Edit</button>
+            <button class="delete-proj delete">Delete</button>
+          </td>`;
+        return tr;
+      }
+
+      async function loadProjects(filter) {
+        const resp = await fetch('/api/projects');
+        const data = await resp.json();
+        const tbody = document.querySelector('#projectsTable tbody');
+        tbody.innerHTML = '';
+        let items = data.projects||[];
+        if (filter) {
+          const f = filter.toLowerCase();
+          items = items.filter(i=> (i.title||'').toLowerCase().includes(f) || (i.tag||'').toLowerCase().includes(f));
+        }
+        items.forEach(p=>{
+          const tr = createProjectRow(p);
+          tbody.appendChild(tr);
+        });
+        attachProjectHandlers();
+      }
+
+      function attachProjectHandlers(){
+        document.querySelectorAll('.edit-proj').forEach(btn=>{
+          btn.onclick = async (e)=>{
+            const tr = e.target.closest('tr');
+            if (e.target.dataset.mode === 'save') return;
+            // switch to edit mode
+            const id = tr.dataset.id;
+            const title = tr.querySelector('.proj-title').textContent;
+            const tag = tr.querySelector('.proj-tag').textContent;
+            const emoji = tr.querySelector('.proj-emoji').textContent;
+            const desc = tr.querySelector('.proj-desc').textContent;
+            tr.querySelector('.proj-title').innerHTML = `<input class="edit-title" value="${escapeAttr(title)}" />`;
+            tr.querySelector('.proj-tag').innerHTML = `<input class="edit-tag" value="${escapeAttr(tag)}" />`;
+            tr.querySelector('.proj-emoji').innerHTML = `<input class="edit-emoji" value="${escapeAttr(emoji)}" />`;
+            tr.querySelector('.proj-desc').innerHTML = `<input class="edit-desc" value="${escapeAttr(desc)}" />`;
+            e.target.textContent = 'Save';
+            e.target.dataset.mode = 'save';
+            // add cancel
+            const cancel = document.createElement('button');
+            cancel.textContent = 'Cancel';
+            cancel.className = 'cancel-edit';
+            e.target.after(cancel);
+            cancel.onclick = ()=>{ loadProjects(document.getElementById('projFilter').value); };
+            e.target.onclick = async (ev)=>{
+              const updated = {
+                title: tr.querySelector('.edit-title').value,
+                tag: tr.querySelector('.edit-tag').value,
+                emoji: tr.querySelector('.edit-emoji').value,
+                desc: tr.querySelector('.edit-desc').value
+              };
+              await fetch('/api/projects/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(updated) });
+              loadProjects(document.getElementById('projFilter').value);
+            };
+          };
+        });
+
+        document.querySelectorAll('.delete-proj').forEach(btn=>{
+          btn.onclick = (e)=>{
+            const tr = e.target.closest('tr');
+            const id = tr.dataset.id;
+            showConfirm(`Delete project "${tr.querySelector('.proj-title').textContent}"?`, async ()=>{
+              await fetch('/api/projects/'+id,{method:'DELETE'});
+              loadProjects(document.getElementById('projFilter').value);
+            });
+          };
+        });
+      }
+
+      document.getElementById('projectForm').addEventListener('submit', async e=>{
+        e.preventDefault();
+        const proj={
+          title:document.getElementById('projTitle').value,
+          tag:document.getElementById('projTag').value,
+          emoji:document.getElementById('projEmoji').value,
+          desc:document.getElementById('projDesc').value
+        };
+        await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(proj)});
+        e.target.reset();
+        loadProjects();
+      });
+      document.getElementById('projFilter').addEventListener('input', e=> loadProjects(e.target.value));
+      loadProjects();
+
+      // --- Events (list, edit, delete) ---
+      function createEventRow(ev){
+        const tr = document.createElement('tr');
+        tr.dataset.id = ev.id;
+        tr.innerHTML = `
+          <td class="ev-date">${escapeHtml(ev.date)}</td>
+          <td class="ev-title">${escapeHtml(ev.title)}</td>
+          <td class="ev-meta">${escapeHtml(ev.meta||'')}</td>
+          <td class="admin-actions"><button class="edit-ev">Edit</button> <button class="delete-ev delete">Delete</button></td>`;
+        return tr;
+      }
+
+      async function loadEvents(filter){
+        const resp = await fetch('/api/events');
+        const data = await resp.json();
+        const tbody = document.querySelector('#eventsTable tbody');
+        tbody.innerHTML = '';
+        let items = data.events||[];
+        if (filter){ const f=filter.toLowerCase(); items = items.filter(i=> (i.title||'').toLowerCase().includes(f) || (i.meta||'').toLowerCase().includes(f)); }
+        items.forEach(ev=> tbody.appendChild(createEventRow(ev)));
+        attachEventHandlers();
+      }
+
+      function attachEventHandlers(){
+        document.querySelectorAll('.edit-ev').forEach(btn=>{
+          btn.onclick = (e)=>{
+            const tr = e.target.closest('tr');
+            const id = tr.dataset.id;
+            const date = tr.querySelector('.ev-date').textContent;
+            const title = tr.querySelector('.ev-title').textContent;
+            const meta = tr.querySelector('.ev-meta').textContent;
+            tr.querySelector('.ev-date').innerHTML = `<input class="edit-ev-date" type="date" value="${escapeAttr(date)}" />`;
+            tr.querySelector('.ev-title').innerHTML = `<input class="edit-ev-title" value="${escapeAttr(title)}" />`;
+            tr.querySelector('.ev-meta').innerHTML = `<input class="edit-ev-meta" value="${escapeAttr(meta)}" />`;
+            e.target.textContent = 'Save';
+            const cancel = document.createElement('button'); cancel.textContent='Cancel'; cancel.className='cancel-edit'; e.target.after(cancel);
+            cancel.onclick = ()=> loadEvents(document.getElementById('evFilter').value);
+            e.target.onclick = async ()=>{
+              const updated={ date: tr.querySelector('.edit-ev-date').value, title: tr.querySelector('.edit-ev-title').value, meta: tr.querySelector('.edit-ev-meta').value };
+              await fetch('/api/events/'+id,{ method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(updated)});
+              loadEvents(document.getElementById('evFilter').value);
+            };
+          };
+        });
+        document.querySelectorAll('.delete-ev').forEach(btn=>{
+          btn.onclick = (e)=>{
+            const tr = e.target.closest('tr');
+            const id = tr.dataset.id;
+            showConfirm(`Delete event "${tr.querySelector('.ev-title').textContent}"?`, async ()=>{
+              await fetch('/api/events/'+id,{method:'DELETE'});
+              loadEvents(document.getElementById('evFilter').value);
+            });
+          };
+        });
+      }
+      document.getElementById('eventForm').addEventListener('submit', async e=>{
+        e.preventDefault();
+        const ev={ date:document.getElementById('evDate').value, title:document.getElementById('evTitle').value, meta:document.getElementById('evMeta').value };
+        await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)});
+        e.target.reset();
+        loadEvents();
+      });
+      document.getElementById('evFilter').addEventListener('input', e=> loadEvents(e.target.value));
+      loadEvents();
+
+      // --- Confirm modal ---
+      const confirmModal = document.getElementById('confirmModal');
+      const confirmMessage = document.getElementById('confirmMessage');
+      const confirmOK = document.getElementById('confirmOK');
+      const confirmCancel = document.getElementById('confirmCancel');
+      let confirmCallback = null;
+      function showConfirm(msg, cb){ confirmMessage.textContent = msg; confirmCallback = cb; confirmModal.classList.add('open'); confirmModal.setAttribute('aria-hidden','false'); }
+      function hideConfirm(){ confirmModal.classList.remove('open'); confirmModal.setAttribute('aria-hidden','true'); confirmCallback = null; }
+      confirmOK.onclick = async ()=>{ if (confirmCallback) await confirmCallback(); hideConfirm(); };
+      confirmCancel.onclick = ()=> hideConfirm();
+
+      // small helpers
+      function escapeHtml(s){ if (!s) return ''; return String(s).replace(/[&<>\"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+      function escapeAttr(s){ return escapeHtml(s).replace(/'/g, '&#39;'); }
+
+    </script>
+  </div>
+</body>
+</html>

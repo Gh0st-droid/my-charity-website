@@ -78,79 +78,20 @@
     <h2 class="section-title">Our Active Initiatives</h2>
     <p class="section-subtitle">Each project is carefully designed with communities at the center, ensuring real, lasting impact for those who need it most.</p>
   </div>
-  <div class="projects-grid">
-    <div class="project-card">
-      <div class="project-image p1">📚</div>
-      <div class="project-body">
-        <div class="project-tag">Education</div>
-        <div class="project-title">Literacy for All</div>
-        <div class="project-desc">Providing quality education and learning materials to children in underserved rural communities across Sub-Saharan Africa.</div>
-        <div class="progress-wrap">
-          <div class="progress-info"><span>Raised: $48,200</span><span>Goal: $60,000</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="project-card">
-      <div class="project-image p2">💧</div>
-      <div class="project-body">
-        <div class="project-tag">Clean Water</div>
-        <div class="project-title">Wells of Hope</div>
-        <div class="project-desc">Installing sustainable clean water systems in drought-affected villages, reducing waterborne disease by up to 70%.</div>
-        <div class="progress-wrap">
-          <div class="progress-info"><span>Raised: $33,000</span><span>Goal: $50,000</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:66%"></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="project-card">
-      <div class="project-image p3">🏥</div>
-      <div class="project-body">
-        <div class="project-tag">Healthcare</div>
-        <div class="project-title">Mobile Clinics</div>
-        <div class="project-desc">Bringing essential medical care to remote areas where healthcare access is limited, serving thousands monthly.</div>
-        <div class="progress-wrap">
-          <div class="progress-info"><span>Raised: $71,500</span><span>Goal: $80,000</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:89%"></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="project-card">
-      <div class="project-image p4">👩‍💼</div>
-      <div class="project-body">
-        <div class="project-tag">Empowerment</div>
-        <div class="project-title">Women Lead</div>
-        <div class="project-desc">Microfinance and skills training programs empowering women entrepreneurs in Southeast Asia to build thriving businesses.</div>
-        <div class="progress-wrap">
-          <div class="progress-info"><span>Raised: $22,000</span><span>Goal: $40,000</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:55%"></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="project-card">
-      <div class="project-image p5">🌾</div>
-      <div class="project-body">
-        <div class="project-tag">Food Security</div>
-        <div class="project-title">Harvest Future</div>
-        <div class="project-desc">Teaching climate-resilient farming techniques to smallholder farmers to protect their livelihoods against shifting weather patterns.</div>
-        <div class="progress-wrap">
-          <div class="progress-info"><span>Raised: $18,400</span><span>Goal: $35,000</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:53%"></div></div>
-        </div>
-      </div>
-    </div>
-    <div class="project-card">
-      <div class="project-image p6">🏠</div>
-      <div class="project-body">
-        <div class="project-tag">Shelter</div>
-        <div class="project-title">Safe Homes</div>
-        <div class="project-desc">Constructing durable, affordable housing for disaster-displaced families, helping them rebuild their lives with dignity.</div>
-        <div class="progress-wrap">
-          <div class="progress-info"><span>Raised: $55,000</span><span>Goal: $90,000</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:61%"></div></div>
-        </div>
-      </div>
-    </div>
+  <div id="projectsGrid" class="projects-grid">
+    <!-- projects will be populated here via JavaScript -->
+  </div>
+</section>
+
+<!-- EVENTS -->
+<section id="events">
+  <div class="section-header centered">
+    <div class="section-eyebrow">Upcoming Events</div>
+    <h2 class="section-title">Join Our Initiatives</h2>
+    <p class="section-subtitle">Participate in workshops, fundraisers, and awareness campaigns around the globe.</p>
+  </div>
+  <div id="eventsList" class="events-list">
+    <!-- events will be fetched from server -->
   </div>
 </section>
 
@@ -160,6 +101,12 @@
     <div class="section-eyebrow">Support Our Mission</div>
     <h2 class="section-title">Make a Difference Today</h2>
     <p class="section-subtitle">Every contribution, big or small, goes directly toward creating meaningful change in communities around the world.</p>
+  </div>
+  <!-- donation statistics (fetched from backend) -->
+  <div id="donationStats" class="donation-stats">
+    <p><strong>Total raised:</strong> $<span id="totalRaised">0</span> across <span id="donationCount">0</span> donations.</p>
+    <div id="projectBreakdown" class="project-breakdown"></div>
+    <div id="recentDonations" class="recent-donations" role="status" aria-live="polite"></div>
   </div>
   <div class="donate-grid">
     <div>
@@ -189,9 +136,13 @@
           <label for="donorEmail">Email Address</label>
           <input id="donorEmail" name="email" type="email" placeholder="jane@example.com"/>
         </div>
+        <div class="form-group" style="display:flex;align-items:center;">
+          <input type="checkbox" id="anonymousTip" name="anonymous" />
+          <label for="anonymousTip" style="margin-left:0.3rem;">Donate anonymously</label>
+        </div>
         <div class="form-group">
-          <label>Donate Towards</label>
-          <select>
+          <label for="donationProject">Donate Towards</label>
+          <select id="donationProject" name="project">
             <option>Where It's Needed Most</option>
             <option>Literacy for All</option>
             <option>Wells of Hope</option>
@@ -210,7 +161,8 @@
           <label>Card Details</label>
           <!-- using Stripe Elements is recommended; this div will host the card element -->
           <div id="card-element" style="padding:0.8rem 1rem;border:1.5px solid var(--border);border-radius:10px;background:#fff;"></div>
-          <input type="hidden" id="card-number" name="card"/><!-- fallback if not using elements -->
+          <!-- fallback input shown when Stripe is not available -->
+          <input type="text" id="card-number" name="card" placeholder="Card number" style="display:none; padding:0.8rem 1rem;border:1.5px solid var(--border);border-radius:10px;background:#fff;" />
         </div>
         <div class="form-group mpesa-fields" style="display:none;">
           <label for="mpesaPhone">M-Pesa Phone</label>

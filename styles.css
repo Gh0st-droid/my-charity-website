@@ -188,7 +188,9 @@ section { padding: 6rem 5%; }
 .project-image {
   height: 180px;
   display: flex; align-items: center; justify-content: center; font-size: 3rem;
+  background: var(--light-bg);
 }
+/* optional variant backgrounds (admin can assign p1-p6 class if desired) */
 .project-image.p1 { background: linear-gradient(135deg, #F2E0C8, #E8C89A); }
 .project-image.p2 { background: linear-gradient(135deg, #C8DDF2, #9ABFE8); }
 .project-image.p3 { background: linear-gradient(135deg, #C8F2D4, #9AE8B0); }
@@ -247,6 +249,15 @@ section { padding: 6rem 5%; }
 
 /* ===== DONATE ===== */
 #donate { background: var(--light-bg); }
+.donation-stats {
+  margin-bottom: 2rem;
+  color: var(--brown);
+  font-size: 0.9rem;
+}
+.donation-stats p { margin: 0 0 0.5rem 0; }
+.donation-stats .project-breakdown { margin-top: 1rem; }
+.donation-stats .recent-donations { margin-top: 1rem; font-size: 0.85rem; color: var(--deep); }
+.donation-stats .recent-donations p { margin: 0.25rem 0; }
 .donate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
 
 /* anonymous tipping checkbox spacing */
@@ -373,6 +384,43 @@ footer {
   .donate-amounts { grid-template-columns: repeat(2, 1fr); }
   .event-card { grid-template-columns: auto 1fr; gap: 1rem; padding: 1rem 1.25rem; }
 }
+
+/* ===== ADMIN DASHBOARD ===== */
+.admin-dashboard { max-width: 1100px; margin: 2.5rem auto; background: var(--card-bg); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border); }
+.admin-header { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+.admin-header h1 { margin:0; font-family:'Playfair Display',serif; font-size:1.35rem; color:var(--deep); }
+.admin-grid { display:grid; grid-template-columns: 1fr 420px; gap:1.25rem; }
+.admin-section { background: var(--warm-white); border-radius:10px; padding:0.85rem; border:1px solid var(--border); }
+.admin-forms { display:flex; flex-direction:column; gap:0.75rem; }
+.admin-forms input[type="text"], .admin-forms input[type="date"], .admin-forms textarea { padding:0.6rem 0.8rem; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); width:100%; }
+.admin-forms button { background:var(--rust); color:#fff; border:none; padding:0.5rem 0.8rem; border-radius:8px; cursor:pointer; }
+.admin-forms button:hover { background:var(--rust-light); }
+.admin-tables { max-height:480px; overflow:auto; }
+.admin-tables table { width:100%; border-collapse:collapse; }
+.admin-tables th, .admin-tables td { padding:0.5rem 0.6rem; border-bottom:1px solid var(--border); }
+.admin-tables thead th { position:sticky; top:0; background:var(--light-bg); z-index:2; }
+.admin-actions button { background:transparent; border:1px solid var(--border); padding:0.3rem 0.5rem; border-radius:6px; cursor:pointer; }
+.admin-actions .delete { color:#b33; border-color:rgba(179,51,51,0.12); }
+.admin-actions .delete:hover { background:rgba(179,51,51,0.06); }
+
+@media (max-width: 900px) {
+  .admin-grid { grid-template-columns: 1fr; }
+  .admin-header { flex-direction:column; align-items:flex-start; gap:0.5rem; }
+}
+
+/* Admin modal */
+.confirm-modal {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 3000;
+  background: rgba(0,0,0,0.4); visibility: hidden; opacity: 0; transition: opacity 0.18s;
+}
+.confirm-modal.open { visibility: visible; opacity: 1; }
+.confirm-modal .confirm-box {
+  background: var(--card-bg); padding: 1rem 1.25rem; border-radius: 10px; border:1px solid var(--border); max-width:420px; width:100%; box-shadow:0 10px 30px rgba(10,10,10,0.08);
+}
+.confirm-modal .confirm-actions { display:flex; gap:0.5rem; justify-content:flex-end; margin-top:0.75rem; }
+.confirm-modal button { padding:0.45rem 0.7rem; border-radius:8px; cursor:pointer; border:1px solid var(--border); }
+.confirm-modal .confirm-btn { background:var(--rust); color:#fff; border:none; }
+.confirm-modal .cancel-btn { background:transparent; }
 
 /* ===== ANIMATIONS ===== */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }

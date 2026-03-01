@@ -5,6 +5,7 @@
       "first": "John",
       "last": "Doe",
       "email": "john@example.com",
+      "project": "Where It's Needed Most",
       "paymentMethod": "mpesa",
       "amount": 25,
       "timestamp": "2026-02-26T20:58:35.518Z",
@@ -14,5 +15,15 @@
       }
     }
   ],
-  "contacts": []
+  "contacts": [],
+  "projects": [
+    {
+      "id": 1772345453291,
+      "title": "Test Project",
+      "tag": "Test",
+      "desc": "Description",
+      "emoji": ""
+    }
+  ],
+  "events": []
 }

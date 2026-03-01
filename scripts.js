@@ -47,7 +47,7 @@ function validateDonationForm() {
   }
 
   if (paymentMethod === 'card') {
-    const cardNumber = form.querySelector('#cardNumber').value.trim();
+    const cardNumber = form.querySelector('#card-number').value.trim();
     if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) {
       alert('Please enter a valid card number.');
       return false;
@@ -105,21 +105,49 @@ document.addEventListener('DOMContentLoaded', () => {
   // fetch configuration from server (publishable key, possibly CSRF token)
   let stripe = null;
   let cardElement = null;
+  let config = {};
   fetch('/config')
     .then(r => r.json())
     .then(cfg => {
+      config = cfg || {};
       // wait a bit for Stripe library to load from CDN
       setTimeout(() => {
+        const cardDiv = document.getElementById('card-element');
+        const fallback = document.getElementById('card-number');
         if (cfg.stripePublishableKey && typeof Stripe !== 'undefined') {
           stripe = Stripe(cfg.stripePublishableKey);
           const elements = stripe.elements();
-          cardElement = elements.create('card');
-          const cardEl = document.getElementById('card-element');
-          if (cardEl && cardElement) cardElement.mount('#card-element');
+          cardElement = elements.create('card', { hidePostalCode: true });
+          if (cardDiv && cardElement) {
+            cardElement.mount('#card-element');
+            // create card error container for accessibility
+            let err = document.getElementById('card-errors');
+            if (!err) {
+              err = document.createElement('div');
+              err.id = 'card-errors';
+              err.setAttribute('role','alert');
+              err.setAttribute('aria-live','polite');
+              cardDiv.parentNode.insertBefore(err, cardDiv.nextSibling);
+            }
+            cardElement.on('change', ev => {
+              const msg = ev.error ? ev.error.message : '';
+              err.textContent = msg;
+            });
+          }
+        } else {
+          // no stripe key or library failed – show manual input
+          if (cardDiv) cardDiv.style.display = 'none';
+          if (fallback) fallback.style.display = 'block';
         }
       }, 100);
     })
-    .catch(() => { /* ignore config errors */ });
+    .catch(() => {
+      // show fallback if config request fails
+      const cardDiv = document.getElementById('card-element');
+      const fallback = document.getElementById('card-number');
+      if (cardDiv) cardDiv.style.display = 'none';
+      if (fallback) fallback.style.display = 'block';
+    });
 
   const hamburger = document.getElementById('hamburger');
   if (hamburger) {
@@ -146,6 +174,48 @@ document.addEventListener('DOMContentLoaded', () => {
   // exchange rate (USD -> KES). Update to current rate as needed.
   const USD_TO_KES = 150;
 
+  // helper: fetch stats from backend and update UI
+  async function updateDonationStats() {
+    try {
+      const resp = await fetch('/api/stats');
+      const data = await resp.json();
+      document.getElementById('totalRaised').textContent = Number(data.total || 0).toLocaleString('en-US');
+      document.getElementById('donationCount').textContent = data.count || 0;
+      const breakdownEl = document.getElementById('projectBreakdown');
+      if (breakdownEl) {
+        breakdownEl.innerHTML = '';
+        if (data.byProject) {
+          for (const [proj, info] of Object.entries(data.byProject)) {
+            const p = document.createElement('p');
+            p.textContent = `${proj}: $${Number(info.total).toLocaleString('en-US')} from ${info.count} donation${info.count===1?'':'s'}`;
+            breakdownEl.appendChild(p);
+          }
+        }
+      }
+      // also load recent donations list
+      const recentEl = document.getElementById('recentDonations');
+      if (recentEl) {
+        const rresp = await fetch('/api/donations');
+        const rdata = await rresp.json();
+        recentEl.innerHTML = '';
+        if (rdata.donations && rdata.donations.length) {
+          const title = document.createElement('strong');
+          title.textContent = 'Latest donations:';
+          recentEl.appendChild(title);
+          rdata.donations.slice(-5).reverse().forEach(d => {
+            const p = document.createElement('p');
+            p.textContent = `$${Number(d.amount).toLocaleString('en-US')} to ${d.project || 'General'} ${d.first ? 'by ' + d.first : ''}`;
+            recentEl.appendChild(p);
+          });
+        } else {
+          recentEl.textContent = 'No donations yet.';
+        }
+      }
+    } catch (e) {
+      console.warn('could not load donation stats', e);
+    }
+  }
+
   // update payment button labels (Visa in USD, M-Pesa in KSh)
   function updatePaymentButtonsLabel() {
     const visaBtn = document.querySelector('.visa-submit');
@@ -158,11 +228,83 @@ document.addEventListener('DOMContentLoaded', () => {
   updatePaymentButtonsLabel();
 
   const donationForm = document.getElementById('donationForm');
+
+  // populate stats on load
+  updateDonationStats();
+  // load dynamic content
+  fetchProjects();
+  fetchEvents();
   // Use separate buttons for Visa / M-Pesa; remove form submit handler
   const visaButton = document.querySelector('.visa-submit');
   const mpesaButton = document.querySelector('.mpesa-submit');
   if (visaButton) visaButton.addEventListener('click', processVisaPayment);
   if (mpesaButton) mpesaButton.addEventListener('click', processMpesaPayment);
+
+  // helper: render projects
+  async function fetchProjects() {
+    try {
+      const resp = await fetch('/api/projects');
+      const data = await resp.json();
+      const container = document.getElementById('projectsGrid');
+      if (container) {
+        container.innerHTML = '';
+        (data.projects||[]).forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'project-card';
+          card.innerHTML = `
+            <div class="project-image">${p.emoji||'🏳️'}</div>
+            <div class="project-body">
+              <div class="project-tag">${p.tag||''}</div>
+              <div class="project-title">${p.title}</div>
+              <div class="project-desc">${p.desc||''}</div>
+            </div>`;
+          container.appendChild(card);
+        });
+      }
+      // populate donation project select if present
+      try {
+        const select = document.getElementById('donationProject');
+        if (select) {
+          // keep default option
+          const defaultOption = select.querySelector('option');
+          select.innerHTML = '';
+          if (defaultOption) select.appendChild(defaultOption);
+          (data.projects||[]).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.title;
+            opt.textContent = p.title;
+            select.appendChild(opt);
+          });
+        }
+      } catch (e) { console.warn('could not populate donation project select', e); }
+    } catch (e) { console.warn('project load failed', e); }
+  }
+
+  // helper: render events
+  async function fetchEvents() {
+    try {
+      const resp = await fetch('/api/events');
+      const data = await resp.json();
+      const list = document.getElementById('eventsList');
+      if (list) {
+        list.innerHTML = '';
+        (data.events||[]).forEach(ev => {
+          const card = document.createElement('div');
+          card.className = 'event-card';
+          card.innerHTML = `
+            <div class="event-date">
+              <div class="month">${new Date(ev.date).toLocaleString('en-US',{month:'short'})}</div>
+              <div class="day">${new Date(ev.date).getDate()}</div>
+            </div>
+            <div class="event-info">
+              <div class="event-title">${ev.title}</div>
+              <div class="event-meta">${ev.meta||''}</div>
+            </div>`;
+          list.appendChild(card);
+        });
+      }
+    } catch (e) { console.warn('event load failed', e); }
+  }
 
   // Payment method toggles (show/hide fields)
   const paymentRadios = document.querySelectorAll('input[name="paymentMethod"]');
@@ -211,6 +353,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Payment processors
   async function processVisaPayment() {
+    const visaBtn = document.querySelector('.visa-submit');
+    const mpesaBtn = document.querySelector('.mpesa-submit');
+    if (visaBtn) visaBtn.disabled = true;
+    if (mpesaBtn) mpesaBtn.disabled = true;
+    const originalVisaText = visaBtn ? visaBtn.textContent : null;
+    if (visaBtn) visaBtn.textContent = 'Processing…';
     const form = document.getElementById('donationForm');
     const anonymous = form.querySelector('#anonymousTip').checked;
     let firstName = form.querySelector('input[name="first"]').value.trim();
@@ -227,10 +375,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (stripe && cardElement) {
       // create payment intent via backend
-      const intentResp = await fetch('/api/create-payment-intent', {
+      const project = document.querySelector('select[name="project"]').value;
+    const intentResp = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: selectedAmount, email: anonymous ? undefined : email })
+        body: JSON.stringify({ amount: selectedAmount, email: anonymous ? undefined : email, project })
       });
       const intentData = await intentResp.json();
       if (intentData.error) return alert('Error: ' + intentData.error);
@@ -242,18 +391,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       if (result.error) {
-        return alert('Stripe error: ' + result.error.message);
+        // show card error and re-enable
+        const err = document.getElementById('card-errors');
+        if (err) err.textContent = result.error.message;
+        else alert('Stripe error: ' + result.error.message);
+        if (visaBtn) visaBtn.disabled = false;
+        if (mpesaBtn) mpesaBtn.disabled = false;
+        if (visaBtn && originalVisaText) visaBtn.textContent = originalVisaText;
+        return;
       }
       // success
-      showMpesaModal('Visa payment processed via Stripe for $' + Number(selectedAmount).toLocaleString('en-US') + '. Thank you' + (anonymous ? '' : ', ' + firstName) + '!');
+      showMpesaModal('Visa payment processed via Stripe for $' + Number(selectedAmount).toLocaleString('en-US') + ' (' + project + '). Thank you' + (anonymous ? '' : ', ' + firstName) + '!');
       form.reset();
       updatePaymentButtonsLabel();
+      updateDonationStats();
+      if (visaBtn) visaBtn.disabled = false;
+      if (mpesaBtn) mpesaBtn.disabled = false;
+      if (visaBtn && originalVisaText) visaBtn.textContent = originalVisaText;
       return;
     }
 
     // fallback to previous method (server handles cardNumber directly)
     const cardNumber = form.querySelector('#card-number').value.trim();
     if (!cardNumber || cardNumber.replace(/\s/g, '').length < 13) return alert('Please enter a valid card number.');
+    const project = document.querySelector('select[name="project"]').value;
     fetch('/api/donate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -264,22 +425,30 @@ document.addEventListener('DOMContentLoaded', () => {
         amount: selectedAmount,
         paymentMethod: 'card',
         cardNumber: cardNumber,
-        anonymous
+        anonymous,
+        project
       })
     })
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          showMpesaModal('Visa payment processed: $' + Number(selectedAmount).toLocaleString('en-US') + '. Thank you' + (anonymous ? '' : ', ' + firstName) + '!');
+          showMpesaModal('Visa payment processed: $' + Number(selectedAmount).toLocaleString('en-US') + ' (' + project + '). Thank you' + (anonymous ? '' : ', ' + firstName) + '!');
           form.reset();
           updatePaymentButtonsLabel();
+          updateDonationStats();
         } else {
           alert('Error: ' + (data.error || 'Unknown'));
         }
+        if (visaBtn) visaBtn.disabled = false;
+        if (mpesaBtn) mpesaBtn.disabled = false;
       });
   }
 
   function processMpesaPayment() {
+    const visaBtn = document.querySelector('.visa-submit');
+    const mpesaBtn = document.querySelector('.mpesa-submit');
+    if (visaBtn) visaBtn.disabled = true;
+    if (mpesaBtn) mpesaBtn.disabled = true;
     const form = document.getElementById('donationForm');
     const anonymous = form.querySelector('#anonymousTip').checked;
     let firstName = form.querySelector('input[name="first"]').value.trim();
@@ -297,6 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (phoneDigits.length < 9) return alert('Please provide a valid phone number for M-Pesa.');
     const usd = Number(selectedAmount) || 0;
     const kes = Math.round(usd * USD_TO_KES);
+    const project = document.querySelector('select[name="project"]').value;
     fetch('/api/donate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -307,18 +477,22 @@ document.addEventListener('DOMContentLoaded', () => {
         amount: selectedAmount,
         paymentMethod: 'mpesa',
         mpesaPhone: phoneDigits,
-        anonymous
+        anonymous,
+        project: document.querySelector('select[name="project"]').value
       })
     })
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          showMpesaModal('M-Pesa STK push initiated to +' + phoneDigits + ' for KSh ' + kes.toLocaleString('en-KE') + '.');
+          showMpesaModal('M-Pesa STK push initiated to +' + phoneDigits + ' for KSh ' + kes.toLocaleString('en-KE') + ' (' + project + ').');
           form.reset();
           updatePaymentButtonsLabel();
+          updateDonationStats();
         } else {
           alert('Error: ' + (data.error || 'Unknown'));
         }
+        if (visaBtn) visaBtn.disabled = false;
+        if (mpesaBtn) mpesaBtn.disabled = false;
       });
   }
 

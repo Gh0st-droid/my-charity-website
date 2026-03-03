@@ -2,7 +2,7 @@
   "version": 2,
   "routes": [
     { "src": "/admin.html", "dest": "/admin.html" },
-    { "src": "/api/(.*)", "dest": "/server/index.js" },
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "src": "^/(?!.*\\.)", "dest": "/charity-website.html" }
   ]
 }

@@ -2,7 +2,6 @@
   "version": 2,
   "routes": [
     { "src": "/admin", "dest": "/admin.html" },
-    // serve static files directly (avoid catch-all rewrite)
     {
       "src": "^/(.*\\.(?:css|js|png|jpg|jpeg|svg|ico|json|woff2?))$",
       "dest": "/$1"

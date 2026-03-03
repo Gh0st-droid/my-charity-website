@@ -1,11 +1,8 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/admin", "dest": "/admin.html" },
-    {
-      "src": "^/(.*\\.(?:css|js|png|jpg|jpeg|svg|ico|json|woff2?))$",
-      "dest": "/$1"
-    },
-    { "src": "/(.*)", "dest": "/charity-website.html" }
+    { "src": "/admin.html", "dest": "/admin.html" },
+    { "src": "/api/(.*)", "dest": "/server/index.js" },
+    { "src": "^/(?!.*\\.)", "dest": "/charity-website.html" }
   ]
 }
